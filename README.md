@@ -140,26 +140,53 @@ ETHICARE HACKATHON/
 
 ---
 
-## 🧪 Testing with Sample Videos
+## 🧪 Testing with Benchmark Videos & Images
 
-Two sample videos are included in `demo_samples/` to evaluate the model immediately:
+Two validated clinical benchmark videos are pre-packaged in `demo_samples/` for immediate 1-click evaluation:
 
 1. Open **[http://localhost:5173/analyze](http://localhost:5173/analyze)**.
 2. Enter an Infant ID (e.g. `INF001`).
-3. Upload **`demo_samples/S001_Pain_1_[0]_20s.mp4`**:
-   - **Diagnosis**: `Severe Pain`
-   - **Score**: ~88.7%
-   - **Action**: Triggers an automated alert.
-4. Upload **`demo_samples/S001_Rest_1_[0]_20s.mp4`**:
-   - **Diagnosis**: `No Pain`
-   - **Score**: ~8.5%
-   - **Action**: Confirms baseline resting state.
+3. Click either 1-click **Use Direct Benchmark Video** button (or browse):
+   - **🔴 Severe Pain Video (`S001_Pain_1_[0]_20s.mp4`)**:
+     - **Diagnosis**: `Severe Pain`
+     - **Confidence Score**: ~88.7%
+     - **Action**: Triggers an automated severe pain alert.
+   - **🟢 Rest / Baseline Video (`S001_Rest_1_[0]_20s.mp4`)**:
+     - **Diagnosis**: `No Pain`
+     - **Confidence Score**: ~8.5%
+     - **Action**: Confirms baseline resting state.
+
+---
+
+## 🎥 Video vs. 📸 Still Image Input Modes
+
+EthiCare is engineered to support both continuous clinical video feeds and single-frame photographic snapshots:
+
+### 1. 🎥 Continuous Video Monitoring (Primary / Recommended)
+* **Architecture**: Spatio-Temporal **CNN-LSTM** trained on the standardized clinical **COPE Neonatal Pain Dataset**.
+* **How It Works**: Extracts a sequence of 16 normalized frames across time to analyze the *temporal velocity* of facial micro-expressions (sustained brow bulge, eye squeeze duration, crying frequency, and grimace dynamics).
+* **Efficiency**: Offers the highest clinical confidence because the LSTM accumulates temporal motion evidence over time.
+* **Benchmark Results**:
+  * `demo_samples/S001_Pain_1_[0]_20s.mp4` → **88.7% Severe Pain** (Triggers automated clinical alert).
+  * `demo_samples/S001_Rest_1_[0]_20s.mp4` → **8.5% No Pain** (Confirms baseline resting state).
+
+### 2. 📸 Still Image Snapshots (Triage & Spot-Check Mode)
+* **Architecture**: Deep spatial feature extraction via MobileNetV2 backbone.
+* **How It Works**: Detects facial regions of interest and evaluates static geometric deformation cues (nasolabial furrowing, forehead tension, mouth opening).
+* **Guidelines for Accurate Still Image Analysis**:
+  * **Front-Facing & Upright**: The infant's face should be upright (top of head pointing up) and facing toward the camera.
+  * **Centered Framing**: The face should fill the primary region of interest rather than being a distant corner in wide background bedding.
+* **Validated Performance**:
+  * **Upright Crying Infant Photo** → **Pain Detected** (`Mild Pain` ~28% – 45%).
+  * **Upright Calm / Neutral Infant Photo** → **No Pain** (5.27% score, **94.7% confidence**).
+  * *Note*: In unconstrained photos where an infant lies sideways on a bed, classical Haar detectors can miss slanted faces and fall back to background bedding. For still images, ensure the infant's face is upright.
 
 ---
 
 ## 📊 Core Features
 
 * **Real-Time Facial Expression Classification**: MobileNetV2 spatial extraction combined with LSTM temporal sequence learning.
+* **Direct Benchmark Execution**: 1-click evaluation straight from `demo_samples/` with zero upload copying.
 * **Automated Clinical Alerting**: Flagging critical thresholds directly into clinical staff alerts.
-* **Patient History & PDF Reporting**: Historical scan tracking (capped at latest 5 findings) with client-side PDF export (`jspdf-autotable`).
+* **Patient History & PDF Reporting**: Historical scan tracking (strictly capped at the **latest 5 findings**) with client-side PDF export (`jspdf-autotable`).
 * **JWT Protected Authentication**: Secure role-based doctor/nurse access.
