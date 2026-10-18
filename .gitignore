@@ -1,0 +1,21 @@
+
+# Python virtual environments
+**/venv/
+**/.venv/
+
+# Python cache files
+**/__pycache__/
+*.py[cod]
+
+# Frontend dependencies
+**/node_modules/
+
+# Logs and uploaded user files
+logs/
+uploads/*
+!uploads/.gitkeep
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
