@@ -69,7 +69,7 @@ except Exception as exc:
 # ─── Configuration ────────────────────────────────────────────────────────
 
 SEQUENCE_LENGTH = 16
-MAX_DETECTION_FRAME_SIDE = 640
+MAX_DETECTION_FRAME_SIDE = 320
 
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
 _MODEL_DIR = _BACKEND_DIR / "model"
@@ -202,30 +202,20 @@ def load_or_build_model() -> tf.keras.Model:
 
 
 def initialise_model() -> None:
-    """Initialize the model once and set up optional Grad-CAM."""
-
+    """Initialize the trained model once; disable optional Grad-CAM."""
     global _model, _gradcam
 
     if _model is not None:
         return
 
     _model = load_or_build_model()
-
-    try:
-        _gradcam = GradCAM(_model)
-        logger.info("Grad-CAM initialized.")
-
-    except Exception as exc:
-        _gradcam = None
-        logger.warning(
-            "Grad-CAM initialization failed; heatmaps are disabled: {}",
-            exc,
-        )
+    _gradcam = None
 
     logger.info(
         "Prediction service initialized. Model output units: {}",
         _model.output_shape[-1],
     )
+    logger.info("Grad-CAM disabled to reduce memory usage.")
 
 
 def get_model() -> tf.keras.Model:
