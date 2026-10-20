@@ -395,11 +395,48 @@ def predict_pain(
         copy=False,
     )
 
-    # Direct inference avoids the model.predict data-adapter overhead.
-    predictions_tensor = model(input_tensor, training=False)
-    predictions = predictions_tensor.numpy()
+   
+    # Run the CNN on 2 frames at a time to reduce peak activation memory.
+    # This preserves all 16 frames and the original trained architecture.
+     # Find the actual CNN and pooling layers, regardless of InputLayer.
+    td_indices = [
+        i for i, layer in enumerate(model.layers)
+        if isinstance(layer, tf.keras.layers.TimeDistributed)
+    ]
 
-    del predictions_tensor
+    if len(td_indices) < 2:
+        raise ValueError(
+            "Expected two TimeDistributed layers for CNN-LSTM inference."
+        )
+
+    cnn_layer = model.layers[td_indices[0]]
+    pooling_layer = model.layers[td_indices[1]]
+
+    feature_chunks = []
+
+    for start in range(0, SEQUENCE_LENGTH, 2):
+        frame_batch = input_tensor[:, start:start + 2, ...]
+
+        features = cnn_layer(frame_batch, training=False)
+        pooled_features = pooling_layer(features, training=False)
+
+        feature_chunks.append(pooled_features)
+
+        del features, pooled_features, frame_batch
+
+    sequence_features = tf.concat(feature_chunks, axis=1)
+    del feature_chunks
+
+    x = sequence_features
+
+    # Run the remaining trained LSTM and classification layers.
+    for layer in model.layers[td_indices[1] + 1:]:
+        x = layer(x, training=False)
+
+    predictions = x.numpy()
+
+    del x, sequence_features
+
 
     if predictions.ndim != 2 or predictions.shape[0] != 1:
         raise ValueError(
