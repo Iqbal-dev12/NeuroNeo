@@ -43,7 +43,7 @@ export default function AnalyzePage() {
     const handleSelectDemo = (filename) => {
         setSelectedDemoSample(filename)
         setFile(null)
-        setPreviewUrl(`http://127.0.0.1:8000/demo_samples/${filename}`)
+        setPreviewUrl(`https://neuroneo.onrender.com/demo_samples/${filename}`)
         setIsVideo(true)
         setResult(null)
         setError(null)
@@ -69,7 +69,7 @@ export default function AnalyzePage() {
 
         try {
             // 1. Try to register the infant first (silent fail if exists)
-            await fetch('http://127.0.0.1:8000/api/pain/infant', {
+            await fetch('https://neuroneo.onrender.com/api/pain/infant', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -88,7 +88,7 @@ export default function AnalyzePage() {
                 formData.append('file', file)
             }
 
-            const res = await fetch('http://127.0.0.1:8000/api/pain/predict', {
+            const res = await fetch('https://neuroneo.onrender.com/api/pain/predict', {
                 method: 'POST',
                 body: formData,
             })
