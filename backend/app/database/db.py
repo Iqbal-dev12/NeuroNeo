@@ -1,49 +1,54 @@
+
 import os
-import pymysql
+from urllib.parse import quote_plus
+
 from loguru import logger
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-# ─── Connection Parameters ───────────────────────────────────────────────────
+# Database configuration from Render environment variables
 MYSQL_USER = os.getenv("MYSQL_USER", "root")
 MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "root")
 MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
+MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
 MYSQL_DB = os.getenv("MYSQL_DB", "neonatal_auth")
 
-# ─── Ensure Database Exists ───────────────────────────────────────────────────
-try:
-    conn = pymysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD)
-    cursor = conn.cursor()
-    cursor.execute(f"CREATE DATABASE IF NOT EXISTS {MYSQL_DB}")
-    cursor.close()
-    conn.close()
-    logger.info(f"Database {MYSQL_DB} checked/created successfully")
-except Exception as e:
-    logger.warning(f"Database creation check failed: {e}")
-
-# ─── Connection URL ──────────────────────────────────────────────────────────
-DATABASE_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:3306/{MYSQL_DB}?charset=utf8mb4"
-
-# ─── Engine ──────────────────────────────────────────────────────────────────
-engine = create_engine(
-    DATABASE_URL,
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,       # recycles stale connections
-    pool_recycle=3600,        # recycle every hour
-    echo=False,               # set True for verbose SQL logs
+# Build the database URL safely, including passwords with special characters
+DATABASE_URL = (
+    f"mysql+pymysql://{quote_plus(MYSQL_USER)}:"
+    f"{quote_plus(MYSQL_PASSWORD)}@{MYSQL_HOST}:"
+    f"{MYSQL_PORT}/{MYSQL_DB}?charset=utf8mb4"
 )
 
+# Configure TLS for the hosted Aiven database
+connect_args = {}
 
-# ─── Keep connections alive ───────────────────────────────────────────────────
+if MYSQL_HOST not in ("localhost", "127.0.0.1"):
+    connect_args["ssl"] = {"check_hostname": True}
+
+# Create the SQLAlchemy engine
+engine = create_engine(
+    DATABASE_URL,
+    connect_args=connect_args,
+    pool_pre_ping=True,
+    pool_recycle=1800,
+    pool_size=5,
+    max_overflow=5,
+    pool_timeout=30,
+    echo=False,
+)
+
+# Set UTF-8 character encoding on each connection
 @event.listens_for(engine, "connect")
-def set_charset(dbapi_connection, connection_record):  # noqa: ARG001
+def set_charset(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
-    cursor.execute("SET NAMES utf8mb4")
-    cursor.close()
+    try:
+        cursor.execute("SET NAMES utf8mb4")
+    finally:
+        cursor.close()
 
 
-# ─── Session factory ──────────────────────────────────────────────────────────
+# Session factory
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
@@ -51,14 +56,13 @@ SessionLocal = sessionmaker(
 )
 
 
-# ─── Declarative base ─────────────────────────────────────────────────────────
+# Declarative base for SQLAlchemy models
 class Base(DeclarativeBase):
     pass
 
 
-# ─── Dependency ──────────────────────────────────────────────────────────────
+# FastAPI database dependency
 def get_db():
-    """FastAPI dependency that yields a database session."""
     db = SessionLocal()
     try:
         yield db
@@ -69,14 +73,15 @@ def get_db():
         db.close()
 
 
-# ─── Health check ─────────────────────────────────────────────────────────────
+# Database connectivity check
 def check_db_connection() -> bool:
-    """Returns True if the database is reachable."""
     try:
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        logger.info("Database connection OK")
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+
+        logger.info("Database connection successful")
         return True
+
     except Exception as exc:
-        logger.error(f"Database connection FAILED: {exc}")
+        logger.error(f"Database connection failed: {exc}")
         return False
