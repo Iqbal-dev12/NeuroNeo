@@ -395,9 +395,9 @@ def predict_pain(
         copy=False,
     )
 
-     # Run the CNN on one frame at a time to reduce peak activation memory.
-     # Preserve all 16 frames and the original trained architecture.
-     # Find the actual CNN and pooling layers, regardless of InputLayer.
+    # Run the CNN on one frame at a time to reduce peak activation memory.
+    # Preserve all 16 frames and the original trained architecture.
+    # Find the actual CNN and pooling layers, regardless of InputLayer.
     td_indices = [
         i for i, layer in enumerate(model.layers)
         if isinstance(layer, tf.keras.layers.TimeDistributed)
@@ -413,8 +413,8 @@ def predict_pain(
 
     feature_chunks = []
 
-   for start in range(0, SEQUENCE_LENGTH):
-    frame_batch = input_tensor[:, start:start + 1, ...]
+    for start in range(SEQUENCE_LENGTH):
+        frame_batch = input_tensor[:, start:start + 1, ...]
 
         features = cnn_layer(frame_batch, training=False)
         pooled_features = pooling_layer(features, training=False)
